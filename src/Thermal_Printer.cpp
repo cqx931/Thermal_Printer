@@ -20,7 +20,7 @@
 //
 #include <Arduino.h>
 // uncomment this line to see debug info on the serial monitor
-//#define DEBUG_OUTPUT
+#define DEBUG_OUTPUT
 
 // Two sets of code - one for ESP32
 #ifdef HAL_ESP32_HAL_H_
@@ -56,12 +56,12 @@ static void tpPostGraphics(void);
 static void tpSendScanline(uint8_t *pSrc, int iLen);
 
 // Names and types of supported printers
-const char *szBLENames[] = {(char *)"MTP-2", (char *)"MTP-3",(char *)"MTP-3F",(char *)"GT01",(char *)"GT02",(char *)"GB01",(char *)"GB02", (char *)"YHK-A133", (char *)"PeriPage+",(char *)"PeriPage_","T02",NULL};
-const uint8_t ucBLETypes[] = {PRINTER_MTP2, PRINTER_MTP3, PRINTER_MTP3, PRINTER_CAT, PRINTER_CAT, PRINTER_CAT, PRINTER_CAT, PRINTER_CAT, PRINTER_PERIPAGEPLUS, PRINTER_PERIPAGE, PRINTER_PHOMEMO};
-const int iPrinterWidth[] = {384, 576, 384, 576, 384, 384};
+const char *szBLENames[] = {(char *)"MTP-2", (char *)"MTP-3",(char *)"MTP-3F",(char *)"GT01",(char *)"GT02",(char *)"GB01",(char *)"GB02", (char *)"YHK-A133", (char *)"PeriPage+",(char *)"PeriPage_","T02", (char *)"starpany2", NULL};
+const uint8_t ucBLETypes[] = {PRINTER_MTP2, PRINTER_MTP3, PRINTER_MTP3, PRINTER_CAT, PRINTER_CAT, PRINTER_CAT, PRINTER_CAT, PRINTER_CAT, PRINTER_PERIPAGEPLUS, PRINTER_PERIPAGE, PRINTER_FOMEMO, PRINTER_DODOCOOL};
+const int iPrinterWidth[] = {384, 576, 384, 576, 384, 384, 384};
 const uint8_t PeriPrefix[] = {0x10,0xff,0xfe,0x01};
-const char *szServiceNames[] = {(char *)"18f0", (char *)"18f0", (char *)"ae30", (char *)"ff00",(char *)"ff00", (char *)"ff00"}; // 16-bit UUID of the printer services we want
-const char *szCharNames[] = {(char *)"2af1", (char *)"2af1", (char *)"ae01",(char *)"ff02", (char *)"ff02", (char *)"ff02"}; // 16-bit UUID of printer data characteristics we want
+const char *szServiceNames[] = {(char *)"18f0", (char *)"18f0", (char *)"ae30", (char *)"ff00",(char *)"ff00", (char *)"ff00", (char *)"18f0"}; // 16-bit UUID of the printer services we want
+const char *szCharNames[] = {(char *)"2af1", (char *)"2af1", (char *)"ae01",(char *)"ff02", (char *)"ff02", (char *)"2af1"}; // 16-bit UUID of printer data characteristics we want
 // Command sequences for the 'cat' printer
 const int8_t getDevState[] = {81, 120, -93, 0, 1, 0, 0, 0, -1};
 const int8_t setQ200DPI[] = {81, 120, -92, 0, 1, 0, 50, -98, -1};
@@ -97,13 +97,13 @@ const unsigned char ucMirror[256]=
 
 #ifdef ARDUINO_NRF52_ADAFRUIT
 // Bluetooth support for Adafruit nrf52 boards
-//#define myServiceUUID 0xFEA0
-//#define myDataUUID 0xFEA1
+// #define myServiceUUID 0xFEA0
+// #define myDataUUID 0xFEA1
 static ble_gap_evt_adv_report_t the_report;
 static uint16_t the_conn_handle;
 static int bNRFFound;
-//BLEClientCharacteristic myDataChar(myDataUUID);
-//BLEClientService myService(myServiceUUID);
+// BLEClientCharacteristic myDataChar(myDataUUID);
+// BLEClientService myService(myServiceUUID);
 BLEClientService myService; //(0x18f0);
 BLEClientCharacteristic myDataChar; //(0x2af1);
 
@@ -128,7 +128,7 @@ static void connect_callback(uint16_t conn_handle)
     Bluefruit.disconnect(conn_handle);
     return;
   }
- 
+
   // Once FEA0 service is found, we continue to discover its characteristics
   if ( !myDataChar.discover() )
   {
@@ -169,7 +169,7 @@ void ParseDeviceName(uint8_t *s, char *szOut)
     } else {
       i += iLen; // skip this data field
     }
-  } 
+  }
 } /* ParseDeviceName() */
 
 static void scan_callback(ble_gap_evt_adv_report_t* report)
@@ -225,6 +225,8 @@ static BLEUUID SERVICE_UUID1(BLEUUID ((uint16_t)0xae30));
 static BLEUUID CHAR_UUID_DATA1(BLEUUID((uint16_t)0xae01));
 static BLEUUID SERVICE_UUID2(BLEUUID ((uint16_t)0xff00));
 static BLEUUID CHAR_UUID_DATA2(BLEUUID((uint16_t)0xff02));
+static BLEUUID SERVICE_UUID3("e7810a71-73ae-499d-8c15-faa9aef0c3f2");
+static BLEUUID CHAR_UUID_DATA3 ("bef8d6c9-9c21-4c9e-b632-bd58c1009f9f");
 
 static String Scanned_BLE_Address;
 static BLEScanResults foundDevices;
@@ -499,7 +501,7 @@ int iPrintWidth = iPrinterWidth[ucPrinterType];
       } // for ty
       x += pGlyph->xAdvance; // width of this character
     } // while drawing characters
-    tpSendScanline(ucTemp, (iPrintWidth+7)/8); // send to printer 
+    tpSendScanline(ucTemp, (iPrintWidth+7)/8); // send to printer
   } // for each line of output
   tpPostGraphics();
   return 0;
@@ -589,7 +591,7 @@ uint8_t *d, mask;
   if (ucColor)
      d[0] |= mask;
   else
-     d[0] &= ~mask;  
+     d[0] &= ~mask;
   return 0;
 } /* tpSetPixel() */
 //
@@ -695,7 +697,7 @@ int tpConnect(void)
 #endif
     // Connect to the BLE Server.
     pClient->connect(*Server_BLE_Address);
-Serial.println("Came back from connect");
+    Serial.println("Came back from connect");
     if (!pClient->isConnected())
     {
       Serial.println("Connect failed");
@@ -709,6 +711,9 @@ Serial.println("Came back from connect");
        pRemoteService = pClient->getService(SERVICE_UUID1);
     else if (ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS)
        pRemoteService = pClient->getService(SERVICE_UUID2);
+    else if (ucPrinterType == PRINTER_DODOCOOL)
+       pRemoteService = pClient->getService(SERVICE_UUID3);
+
     if (pRemoteService != NULL)
     {
 #ifdef DEBUG_OUTPUT
@@ -723,6 +728,9 @@ Serial.println("Came back from connect");
           pRemoteCharacteristicData = pRemoteService->getCharacteristic(CHAR_UUID_DATA1);
         else if (ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS)
           pRemoteCharacteristicData = pRemoteService->getCharacteristic(CHAR_UUID_DATA2);
+        else if (ucPrinterType == PRINTER_DODOCOOL) {
+          pRemoteCharacteristicData = pRemoteService->getCharacteristic(CHAR_UUID_DATA3);
+        }
         if (pRemoteCharacteristicData != NULL)
         {
 #ifdef DEBUG_OUTPUT
@@ -730,6 +738,10 @@ Serial.println("Came back from connect");
 #endif
           bConnected = 1;
           return 1;
+        } else {
+          #ifdef DEBUG_OUTPUT
+                    Serial.println("Data Characteristic is NULL");
+          #endif
         }
       } // if connected
     } // if service found
@@ -750,7 +762,7 @@ Serial.println("Came back from connect");
 #endif
         return 0; // scan didn't succeed or wasn't run
     }
-    
+
     // Connect to the BLE Server.
 #ifdef DEBUG_OUTPUT
     Serial.println("connection attempt...");
@@ -887,7 +899,7 @@ int tpScan(const char *szName, int iSeconds)
 unsigned long ulTime;
 int bFound = 0;
 int iLen = strlen(szName);
-    
+
     strcpy(szPrinterName, szName); // only use the given name
 #ifdef HAL_ESP32_HAL_H_
     Scanned_BLE_Name[0] = 0;
@@ -911,7 +923,7 @@ int iLen = strlen(szName);
 #ifdef DEBUG_OUTPUT
           Serial.print("Found a compatible device - ");
           Serial.println(Scanned_BLE_Name);
-#endif     
+#endif
        } else if (iLen > 0 && memcmp(Scanned_BLE_Name,szPrinterName, iLen) == 0) // found a device we want
        {
 #ifdef DEBUG_OUTPUT
@@ -968,7 +980,7 @@ int iLen = strlen(szName);
               ucPrinterType = tpFindPrinterName((char *)peripheral.localName().c_str());
               if (ucPrinterType < PRINTER_COUNT) {
                    BLE.stopScan();
-                   bFound = 1; 
+                   bFound = 1;
                    strcpy(szPrinterName, peripheral.localName().c_str());
 #ifdef DEBUG_OUTPUT
                    Serial.print("Found a matching device - ");
@@ -1082,7 +1094,7 @@ int i;
 
   if (iFont < FONT_12x24 || iFont > FONT_9x17) return;
 
-  if (ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3 || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS) {
+  if (ucPrinterType == PRINTER_DODOCOOL|| ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3 || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS) {
      i = 0;
      if (ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS) {
         ucTemp[i++] = 0x10; ucTemp[i++] = 0xff;
@@ -1123,7 +1135,7 @@ static int8_t cEnergy[]  = {81, 120, -81, 0,2,0,-1,-1,0,-1};
 
    cEnergy[6] = (int8_t)(iEnergy >> 8);
    cEnergy[7] = (int8_t)(iEnergy & 0xff);
-   cEnergy[7] = CheckSum((uint8_t *)&cEnergy[6], 2); 
+   cEnergy[7] = CheckSum((uint8_t *)&cEnergy[6], 2);
    return (uint8_t *)cEnergy;
 
 } /* tpSetEnergy() */
@@ -1242,7 +1254,7 @@ int iLen;
       tpWriteData(ucTemp, 8 + len);
      return 1;
   }
-  if (ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3 || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS)
+  if (ucPrinterType == PRINTER_DODOCOOL|| ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3 || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS)
   {
     iLen = strlen(pString);
     if (ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS) {
@@ -1309,7 +1321,7 @@ uint8_t ucTemp[16];
      ucTemp[7] = (uint8_t)iLines;
      ucTemp[8] = CheckSum(&ucTemp[6], 2);
      tpWriteData(ucTemp, sizeof(paperFeed));
-  } else if (ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3) {
+  } else if (ucPrinterType == PRINTER_DODOCOOL|| ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3) {
    // The PT-210 doesn't have a "feed-by-line" command
    // so instead, we'll send 1 byte-wide graphics of a blank segment
    int i;
@@ -1340,7 +1352,7 @@ uint8_t *s, ucTemp[16];
 //    tpWriteData(s, 10);
     tpWriteData((uint8_t *)printImage, sizeof(printImage));
 //    tpWriteData((uint8_t *)paperFeed, 9);
-  } else if (ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3) {
+  } else if (ucPrinterType == PRINTER_DODOCOOL|| ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3) {
   // The printer command for graphics is laid out like this:
   // 0x1d 'v' '0' '0' xLow xHigh yLow yHigh <x/8 * y data bytes>
     ucTemp[0] = 0x1d; ucTemp[1] = 'v';
@@ -1393,7 +1405,7 @@ static void tpSendScanline(uint8_t *s, int iLen)
       ucTemp[6 + iLen + 1] = 0xff;
       ucTemp[6 + iLen] = CheckSum(&ucTemp[6], iLen);
       tpWriteData(ucTemp, 8 + iLen);
-  } else if (ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3 || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS) {
+  } else if (ucPrinterType == PRINTER_DODOCOOL|| ucPrinterType == PRINTER_FOMEMO || ucPrinterType == PRINTER_MTP2 || ucPrinterType == PRINTER_MTP3 || ucPrinterType == PRINTER_PERIPAGE || ucPrinterType == PRINTER_PERIPAGEPLUS) {
       tpWriteData(s, iLen);
   }
     // NB: To reliably send lots of data over BLE, you either use WRITE with
@@ -1432,7 +1444,7 @@ int i;
     tpSendScanline(s, bb_pitch);
     s += bb_pitch;
   } // for y
-  
+
   tpPostGraphics();
 
 } /* tpPrintBuffer() */
